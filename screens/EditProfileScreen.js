@@ -1,17 +1,81 @@
 import React, { useState } from 'react';
 import {
     View, Text, StyleSheet, TextInput, TouchableOpacity,
-    Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
+    Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../constants/theme';
-import { updateMe } from '../api/api';
+import { updateMe, uploadImage, getImageUrl } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function EditProfileScreen({ navigation }) {
     const { user, refreshUser } = useAuth();
     const [username, setUsername] = useState(user?.username || '');
+    const [avatarLetter, setAvatarLetter] = useState(
+        (user?.username || 'U').charAt(0).toUpperCase()
+    );
     const [loading, setLoading] = useState(false);
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
+    const [newAvatarUrl, setNewAvatarUrl] = useState(user?.avatarUrl || null);
+
+    const handlePickAvatar = async () => {
+        Alert.alert('Change Avatar', 'Choose an option', [
+            {
+                text: 'Camera',
+                onPress: async () => {
+                    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                    if (status !== 'granted') {
+                        Alert.alert('Permission needed', 'Please enable camera access in Settings.');
+                        return;
+                    }
+                    const result = await ImagePicker.launchCameraAsync({
+                        mediaTypes: ['images'],
+                        allowsEditing: true,
+                        aspect: [1, 1],
+                        quality: 0.8,
+                    });
+                    if (!result.canceled && result.assets?.[0]?.uri) {
+                        await handleUploadAvatar(result.assets[0].uri);
+                    }
+                },
+            },
+            {
+                text: 'Gallery',
+                onPress: async () => {
+                    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                    if (status !== 'granted') {
+                        Alert.alert('Permission needed', 'Please enable photo library access in Settings.');
+                        return;
+                    }
+                    const result = await ImagePicker.launchImageLibraryAsync({
+                        mediaTypes: ['images'],
+                        allowsEditing: true,
+                        aspect: [1, 1],
+                        quality: 0.8,
+                    });
+                    if (!result.canceled && result.assets?.[0]?.uri) {
+                        await handleUploadAvatar(result.assets[0].uri);
+                    }
+                },
+            },
+            { text: 'Cancel', style: 'cancel' },
+        ]);
+    };
+
+    const handleUploadAvatar = async (uri) => {
+        setUploadingAvatar(true);
+        try {
+            const url = await uploadImage(uri);
+            setNewAvatarUrl(url);
+            Alert.alert('✅', 'Avatar uploaded! Save your profile to apply it.');
+        } catch (e) {
+            console.log('Avatar upload error:', e.message);
+            Alert.alert('Error', 'Could not upload avatar. Please try again.');
+        } finally {
+            setUploadingAvatar(false);
+        }
+    };
 
     const handleSave = async () => {
         if (!username.trim()) {
@@ -20,7 +84,10 @@ export default function EditProfileScreen({ navigation }) {
         }
         setLoading(true);
         try {
-            await updateMe({ username: username.trim() });
+            await updateMe({
+                username: username.trim(),
+                avatarUrl: newAvatarUrl || null,
+            });
             await refreshUser();
             Alert.alert('Success', 'Profile updated!', [
                 { text: 'OK', onPress: () => navigation.goBack() },
@@ -32,6 +99,9 @@ export default function EditProfileScreen({ navigation }) {
             setLoading(false);
         }
     };
+
+    const displayLetter = username.charAt(0).toUpperCase() || 'U';
+    const currentAvatarUrl = getImageUrl(newAvatarUrl || user?.avatarUrl);
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
@@ -54,16 +124,32 @@ export default function EditProfileScreen({ navigation }) {
                 </View>
 
                 <ScrollView contentContainerStyle={styles.scroll}>
-                    {/* Avatar */}
+                    {/* Avatar picker */}
                     <View style={styles.avatarSection}>
-                        <View style={styles.avatar}>
-                            <Text style={styles.avatarText}>
-                                {(username || 'U').charAt(0).toUpperCase()}
-                            </Text>
-                        </View>
-                        <TouchableOpacity>
-                            <Text style={styles.changeAvatarText}>Change Avatar</Text>
+                        <TouchableOpacity onPress={handlePickAvatar} disabled={uploadingAvatar}>
+                            <View style={styles.avatar}>
+                                {uploadingAvatar ? (
+                                    <ActivityIndicator color="#fff" />
+                                ) : currentAvatarUrl ? (
+                                    <Image
+                                        source={{ uri: currentAvatarUrl }}
+                                        style={styles.avatarImage}
+                                        onError={() => {}}
+                                    />
+                                ) : (
+                                    <Text style={styles.avatarText}>{displayLetter}</Text>
+                                )}
+                            </View>
+                            <View style={styles.cameraOverlay}>
+                                <Text style={styles.cameraIcon}>📷</Text>
+                            </View>
                         </TouchableOpacity>
+                        <Text style={styles.changeAvatarText}>
+                            {uploadingAvatar ? 'Uploading...' : 'Tap to change avatar'}
+                        </Text>
+                        {newAvatarUrl && newAvatarUrl !== user?.avatarUrl && (
+                            <Text style={styles.avatarReady}>✅ New avatar ready — tap Save</Text>
+                        )}
                     </View>
 
                     {/* Fields */}
@@ -78,7 +164,6 @@ export default function EditProfileScreen({ navigation }) {
                                 placeholderTextColor={COLORS.textLight}
                             />
                         </View>
-
                         <View style={styles.field}>
                             <Text style={styles.fieldLabel}>Email</Text>
                             <Text style={styles.fieldValueDisabled}>{user?.email}</Text>
@@ -104,25 +189,60 @@ const styles = StyleSheet.create({
     cancelText: { fontSize: 16, color: COLORS.textSecondary },
     headerTitle: { fontSize: 17, fontWeight: '600', color: COLORS.text },
     saveText: { fontSize: 16, color: COLORS.primary, fontWeight: '600' },
-    scroll: { padding: 24 },
-    avatarSection: { alignItems: 'center', marginBottom: 32, gap: 12 },
+    scroll: { padding: 24, alignItems: 'center' },
+    avatarSection: { alignItems: 'center', marginBottom: 36 },
     avatar: {
-        width: 88,
-        height: 88,
-        borderRadius: 44,
+        width: 96,
+        height: 96,
+        borderRadius: 48,
         backgroundColor: COLORS.primary,
         alignItems: 'center',
         justifyContent: 'center',
+        overflow: 'hidden',
     },
-    avatarText: { color: '#fff', fontWeight: '700', fontSize: 36 },
-    changeAvatarText: { color: COLORS.primary, fontSize: 15, fontWeight: '500' },
-    fields: { gap: 20 },
+    avatarImage: {
+        width: 96,
+        height: 96,
+        borderRadius: 48,
+    },
+    avatarText: { color: '#fff', fontWeight: '700', fontSize: 40 },
+    cameraOverlay: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: COLORS.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: '#fff',
+    },
+    cameraIcon: { fontSize: 14 },
+    changeAvatarText: {
+        color: COLORS.primary,
+        fontSize: 14,
+        fontWeight: '500',
+        marginTop: 12,
+    },
+    avatarReady: {
+        color: COLORS.success,
+        fontSize: 13,
+        marginTop: 6,
+    },
+    fields: { width: '100%', gap: 20 },
     field: {
         borderBottomWidth: 1,
         borderBottomColor: COLORS.border,
         paddingBottom: 12,
     },
-    fieldLabel: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 6, fontWeight: '500' },
+    fieldLabel: {
+        fontSize: 12,
+        color: COLORS.textSecondary,
+        marginBottom: 6,
+        fontWeight: '500',
+    },
     fieldInput: {
         fontSize: 16,
         color: COLORS.text,

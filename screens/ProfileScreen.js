@@ -1,12 +1,13 @@
 import React, { useState, useCallback } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, FlatList,
-    RefreshControl, Alert, ActivityIndicator,
+    RefreshControl, Alert, ActivityIndicator, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../constants/theme';
-import { getPostsByUser } from '../api/api';
+import { getPostsByUser, uploadImage, updateMe, getImageUrl } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import PostCard from '../components/PostCard';
 
@@ -15,7 +16,7 @@ export default function ProfileScreen({ navigation }) {
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [activeTab, setActiveTab] = useState('posts');
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
     const fetchPosts = async () => {
         if (!user?.id) return;
@@ -72,8 +73,87 @@ export default function ProfileScreen({ navigation }) {
     };
 
     // Use the actual username from backend user object
+    const handlePickAvatar = async () => {
+        const options = [
+            {
+                text: 'Camera',
+                onPress: async () => {
+                    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                    if (status !== 'granted') {
+                        Alert.alert('Permission needed', 'Please enable camera access in Settings.');
+                        return;
+                    }
+                    const result = await ImagePicker.launchCameraAsync({
+                        mediaTypes: ['images'],
+                        allowsEditing: true,
+                        aspect: [1, 1],
+                        quality: 0.8,
+                    });
+                    if (!result.canceled && result.assets?.[0]?.uri) {
+                        await doUploadAvatar(result.assets[0].uri);
+                    }
+                },
+            },
+            {
+                text: 'Gallery',
+                onPress: async () => {
+                    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                    if (status !== 'granted') {
+                        Alert.alert('Permission needed', 'Please enable photo library access in Settings.');
+                        return;
+                    }
+                    const result = await ImagePicker.launchImageLibraryAsync({
+                        mediaTypes: ['images'],
+                        allowsEditing: true,
+                        aspect: [1, 1],
+                        quality: 0.8,
+                    });
+                    if (!result.canceled && result.assets?.[0]?.uri) {
+                        await doUploadAvatar(result.assets[0].uri);
+                    }
+                },
+            },
+        ];
+
+        // Only show Remove option if they have an avatar
+        if (user?.avatarUrl) {
+            options.push({
+                text: 'Remove Photo',
+                style: 'destructive',
+                onPress: async () => {
+                    try {
+                        await updateMe({ username: user.username, avatarUrl: null });
+                        await refreshUser();
+                        Alert.alert('Done', 'Profile photo removed.');
+                    } catch (e) {
+                        Alert.alert('Error', 'Could not remove photo.');
+                    }
+                },
+            });
+        }
+
+        options.push({ text: 'Cancel', style: 'cancel' });
+        Alert.alert('Profile Photo', 'Choose an option', options);
+    };
+
+    const doUploadAvatar = async (uri) => {
+        setUploadingAvatar(true);
+        try {
+            const url = await uploadImage(uri);
+            await updateMe({ username: user.username, avatarUrl: url });
+            await refreshUser();
+            Alert.alert('✅', 'Avatar updated!');
+        } catch (e) {
+            console.log('Avatar upload error:', e.message);
+            Alert.alert('Error', 'Could not update avatar. Please try again.');
+        } finally {
+            setUploadingAvatar(false);
+        }
+    };
+
     const displayUsername = user?.username || 'Username';
     const avatarLetter = displayUsername.charAt(0).toUpperCase();
+    const avatarImageUrl = getImageUrl(user?.avatarUrl);
 
     const ListHeader = () => (
         <View>
@@ -82,11 +162,26 @@ export default function ProfileScreen({ navigation }) {
 
             {/* Avatar + Edit button */}
             <View style={styles.profileRow}>
-                <View style={styles.avatarWrapper}>
-                    <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>{avatarLetter}</Text>
+                <TouchableOpacity onPress={handlePickAvatar} disabled={uploadingAvatar}>
+                    <View style={styles.avatarWrapper}>
+                        <View style={styles.avatar}>
+                            {uploadingAvatar ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : avatarImageUrl ? (
+                                <Image
+                                    source={{ uri: avatarImageUrl }}
+                                    style={styles.avatarImage}
+                                    onError={() => {}}
+                                />
+                            ) : (
+                                <Text style={styles.avatarText}>{avatarLetter}</Text>
+                            )}
+                        </View>
+                        <View style={styles.cameraOverlay}>
+                            <Text style={styles.cameraIcon}>📷</Text>
+                        </View>
                     </View>
-                </View>
+                </TouchableOpacity>
                 <TouchableOpacity
                     style={styles.editBtn}
                     onPress={() => navigation.navigate('EditProfile')}
@@ -115,32 +210,13 @@ export default function ProfileScreen({ navigation }) {
                     <Text style={styles.statNumber}>
                         {posts.reduce((sum, p) => sum + (p.likeCount || 0), 0)}
                     </Text>
-                    <Text style={styles.statLabel}>Likes</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>
-                        {posts.filter((p) => p.status === 'RESOLVED').length}
-                    </Text>
-                    <Text style={styles.statLabel}>Resolved</Text>
+                    <Text style={styles.statLabel}>Likes received</Text>
                 </View>
             </View>
 
-            {/* Tabs */}
-            <View style={styles.tabs}>
-                {['posts', 'likes', 'comments', 'shares'].map((tab) => (
-                    <TouchableOpacity
-                        key={tab}
-                        style={[styles.tab, activeTab === tab && styles.tabActive]}
-                        onPress={() => setActiveTab(tab)}
-                    >
-                        <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                            {tab === 'posts'
-                                ? `Post (${posts.length})`
-                                : tab.charAt(0).toUpperCase() + tab.slice(1)}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
+            {/* Posts header */}
+            <View style={styles.postsHeader}>
+                <Text style={styles.postsHeaderText}>Posts ({posts.length})</Text>
             </View>
         </View>
     );
@@ -158,7 +234,7 @@ export default function ProfileScreen({ navigation }) {
                 </View>
             ) : (
                 <FlatList
-                    data={activeTab === 'posts' ? posts : []}
+                    data={posts}
                     keyExtractor={(item) => item.id}
                     ListHeaderComponent={ListHeader}
                     refreshControl={
@@ -170,18 +246,9 @@ export default function ProfileScreen({ navigation }) {
                     }
                     ListEmptyComponent={
                         <View style={styles.empty}>
-                            {activeTab === 'posts' ? (
-                                <>
-                                    <Text style={styles.emptyIcon}>📝</Text>
-                                    <Text style={styles.emptyText}>No posts yet</Text>
-                                    <Text style={styles.emptySubtext}>Submit a report to see it here</Text>
-                                </>
-                            ) : (
-                                <>
-                                    <Text style={styles.emptyIcon}>🚧</Text>
-                                    <Text style={styles.emptyText}>Coming soon</Text>
-                                </>
-                            )}
+                            <Text style={styles.emptyIcon}>📝</Text>
+                            <Text style={styles.emptyText}>No posts yet</Text>
+                            <Text style={styles.emptySubtext}>Submit a report to see it here</Text>
                         </View>
                     }
                     renderItem={({ item }) => (
@@ -216,7 +283,22 @@ const styles = StyleSheet.create({
         borderWidth: 4,
         borderColor: '#fff',
         borderRadius: 40,
+        position: 'relative',
     },
+    cameraOverlay: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: COLORS.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: '#fff',
+    },
+    cameraIcon: { fontSize: 12 },
     avatar: {
         width: 72,
         height: 72,
@@ -224,6 +306,12 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.primary,
         alignItems: 'center',
         justifyContent: 'center',
+        overflow: 'hidden',
+    },
+    avatarImage: {
+        width: 72,
+        height: 72,
+        borderRadius: 36,
     },
     avatarText: { color: '#fff', fontWeight: '700', fontSize: 30 },
     editBtn: {
@@ -250,15 +338,17 @@ const styles = StyleSheet.create({
     statNumber: { fontSize: 18, fontWeight: '700', color: COLORS.text },
     statLabel: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
     statDivider: { width: 1, backgroundColor: COLORS.border },
-    tabs: {
-        flexDirection: 'row',
+    postsHeader: {
+        paddingHorizontal: 16,
+        paddingVertical: 12,
         borderBottomWidth: 1,
         borderBottomColor: COLORS.border,
     },
-    tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
-    tabActive: { borderBottomWidth: 2, borderBottomColor: COLORS.primary },
-    tabText: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '500' },
-    tabTextActive: { color: COLORS.primary, fontWeight: '600' },
+    postsHeaderText: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: COLORS.text,
+    },
     empty: { alignItems: 'center', paddingTop: 40, gap: 8 },
     emptyIcon: { fontSize: 40 },
     emptyText: { fontSize: 15, fontWeight: '600', color: COLORS.text },

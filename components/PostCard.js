@@ -47,15 +47,25 @@ export default function PostCard({ post, onPress, onLikeChange }) {
 
     const imageUrl = getImageUrl(post.imageUrl);
     const hasImage = !!(imageUrl && imageUrl.startsWith('http'));
+    const avatarUrl = getImageUrl(post.avatarUrl);
+    const hasAvatar = !!(avatarUrl && avatarUrl.startsWith('http'));
 
     return (
         <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.95}>
             {/* Header */}
             <View style={styles.header}>
                 <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>
-                        {(post.username || 'U').charAt(0).toUpperCase()}
-                    </Text>
+                    {hasAvatar ? (
+                        <Image
+                            source={{ uri: avatarUrl }}
+                            style={styles.avatarImage}
+                            onError={() => {}}
+                        />
+                    ) : (
+                        <Text style={styles.avatarText}>
+                            {(post.username || 'U').charAt(0).toUpperCase()}
+                        </Text>
+                    )}
                 </View>
                 <View style={styles.headerInfo}>
                     <Text style={styles.username}>{post.username || 'User'}</Text>
@@ -119,7 +129,9 @@ const styles = StyleSheet.create({
         width: 40, height: 40, borderRadius: 20,
         backgroundColor: COLORS.primary,
         alignItems: 'center', justifyContent: 'center', marginRight: 10,
+        overflow: 'hidden',
     },
+    avatarImage: { width: 40, height: 40, borderRadius: 20 },
     avatarText: { color: '#fff', fontWeight: '700', fontSize: 16 },
     headerInfo: { flex: 1 },
     username: { fontWeight: '600', fontSize: 14, color: COLORS.text },

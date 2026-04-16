@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TouchableOpacity,
-    TextInput, RefreshControl, ActivityIndicator,
+    TextInput, RefreshControl, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -83,7 +83,7 @@ export default function HomeScreen({ navigation }) {
                 onPress={() => handleCategoryChange(cat)}
             >
                 <Text style={styles.catIcon}>{icon}</Text>
-                <Text style={[styles.catText, isActive && styles.catTextActive]}>{label}</Text>
+                <Text style={[styles.catText, isActive && styles.catTextActive]} numberOfLines={1}>{label}</Text>
             </TouchableOpacity>
         );
     };
@@ -116,14 +116,13 @@ export default function HomeScreen({ navigation }) {
             </View>
 
             {/* Category filter */}
-            <FlatList
-                data={CATEGORIES}
-                keyExtractor={(item) => item}
+            <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.categories}
-                renderItem={({ item }) => renderCategory(item)}
-            />
+            >
+                {CATEGORIES.map((cat) => renderCategory(cat))}
+            </ScrollView>
 
             {/* Posts feed */}
             <FlatList
@@ -146,6 +145,7 @@ export default function HomeScreen({ navigation }) {
                 }
                 renderItem={({ item }) => (
                     <PostCard
+                        key={`${item.id}-${item.likeCount}-${item.commentCount}`}
                         post={item}
                         currentUserId={user?.id}
                         onPress={() => navigation.navigate('PostDetail', { post: item })}
@@ -178,21 +178,22 @@ const styles = StyleSheet.create({
     searchIcon: { fontSize: 16, marginRight: 8 },
     searchInput: { flex: 1, fontSize: 14, color: COLORS.text },
     clearIcon: { fontSize: 14, color: COLORS.textLight, padding: 4 },
-    categories: { paddingHorizontal: 16, paddingBottom: 8, gap: 8 },
+    categories: { paddingHorizontal: 16, paddingBottom: 10, gap: 8 },
     catChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 7,
-        borderRadius: 20,
+        paddingHorizontal: 18,
+        paddingVertical: 12,
+        borderRadius: 30,
         backgroundColor: '#fff',
-        borderWidth: 1,
+        borderWidth: 1.5,
         borderColor: COLORS.border,
-        gap: 4,
+        gap: 6,
+        minWidth: 80,
     },
     catChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-    catIcon: { fontSize: 13 },
-    catText: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '500' },
+    catIcon: { fontSize: 18 },
+    catText: { fontSize: 15, color: COLORS.textSecondary, fontWeight: '600' },
     catTextActive: { color: '#fff' },
     feed: { paddingTop: 4, paddingBottom: 24 },
     empty: { alignItems: 'center', paddingTop: 60, gap: 8 },

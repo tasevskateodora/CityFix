@@ -113,9 +113,17 @@ export default function PostDetailScreen({ route, navigation }) {
                     {/* Post author */}
                     <View style={styles.authorRow}>
                         <View style={styles.avatar}>
-                            <Text style={styles.avatarText}>
-                                {(post.username || 'U').charAt(0).toUpperCase()}
-                            </Text>
+                            {getImageUrl(post.avatarUrl) ? (
+                                <Image
+                                    source={{ uri: getImageUrl(post.avatarUrl) }}
+                                    style={styles.avatarImage}
+                                    onError={() => {}}
+                                />
+                            ) : (
+                                <Text style={styles.avatarText}>
+                                    {(post.username || 'U').charAt(0).toUpperCase()}
+                                </Text>
+                            )}
                         </View>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.username}>{post.username || 'User'}</Text>
@@ -244,13 +252,12 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     avatar: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        width: 44, height: 44, borderRadius: 22,
         backgroundColor: COLORS.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
+        alignItems: 'center', justifyContent: 'center',
+        overflow: 'hidden',
     },
+    avatarImage: { width: 44, height: 44, borderRadius: 22 },
     avatarText: { color: '#fff', fontWeight: '700', fontSize: 18 },
     username: { fontWeight: '600', fontSize: 15, color: COLORS.text },
     time: { fontSize: 12, color: COLORS.textLight, marginTop: 2 },

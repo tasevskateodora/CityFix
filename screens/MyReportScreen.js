@@ -88,10 +88,6 @@ export default function MyReportScreen({ navigation }) {
                     <View style={styles.itemMeta}>
                         <Text style={[styles.itemCat, { color: catColor }]}>{catLabel}</Text>
                         <Text style={styles.dot}>·</Text>
-                        <Text style={[styles.itemStatus, { color: statusColor }]}>
-                            {statusLabel}
-                        </Text>
-                        <Text style={styles.dot}>·</Text>
                         <Text style={styles.itemDate}>{formatDate(item.createdAt)}</Text>
                     </View>
                 </View>
@@ -117,23 +113,7 @@ export default function MyReportScreen({ navigation }) {
                 </View>
             </View>
 
-            {/* Status filter chips */}
-            <View style={styles.filters}>
-                {['All', 'OPEN', 'IN_PROGRESS', 'RESOLVED'].map((s) => (
-                    <TouchableOpacity
-                        key={s}
-                        style={[styles.filterChip, statusFilter === s && styles.filterChipActive]}
-                        onPress={() => setStatusFilter(s)}
-                    >
-                        <Text style={[
-                            styles.filterChipText,
-                            statusFilter === s && styles.filterChipTextActive,
-                        ]}>
-                            {s === 'All' ? 'All' : STATUS_LABELS[s] || s}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
+
 
             <FlatList
                 data={filtered}

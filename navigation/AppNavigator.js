@@ -24,17 +24,10 @@ const ReportStack = createStackNavigator();
 const MyReportStack = createStackNavigator();
 const ProfileStack = createStackNavigator();
 
-function TabIcon({ emoji, label, focused }) {
+function TabIcon({ emoji }) {
     return (
-        <View style={{ alignItems: 'center', gap: 2 }}>
-            <Text style={{ fontSize: 20 }}>{emoji}</Text>
-            <Text style={{
-                fontSize: 10,
-                fontWeight: focused ? '600' : '400',
-                color: focused ? COLORS.primary : COLORS.textLight,
-            }}>
-                {label}
-            </Text>
+        <View style={{ alignItems: 'center', marginTop: -6 }}>
+            <Text style={{ fontSize: 28 }}>{emoji}</Text>
         </View>
     );
 }
@@ -90,9 +83,9 @@ function MainTabs() {
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: {
-                    height: 72,
-                    paddingBottom: 12,
-                    paddingTop: 8,
+                    height: 65,
+                    paddingBottom: 0,
+                    paddingTop: 0,
                     borderTopColor: COLORS.border,
                     backgroundColor: '#fff',
                 },
@@ -104,7 +97,7 @@ function MainTabs() {
                 component={HomeStackScreen}
                 options={{
                     tabBarIcon: ({ focused }) => (
-                        <TabIcon emoji="🏠" label="Home" focused={focused} />
+                        <TabIcon emoji="🏠" />
                     ),
                 }}
             />
@@ -113,7 +106,7 @@ function MainTabs() {
                 component={MapStackScreen}
                 options={{
                     tabBarIcon: ({ focused }) => (
-                        <TabIcon emoji="🗺️" label="Map" focused={focused} />
+                        <TabIcon emoji="🗺️" />
                     ),
                 }}
             />
@@ -122,7 +115,7 @@ function MainTabs() {
                 component={ReportStackScreen}
                 options={{
                     tabBarIcon: ({ focused }) => (
-                        <TabIcon emoji="📋" label="Report" focused={focused} />
+                        <TabIcon emoji="📋" />
                     ),
                 }}
             />
@@ -131,7 +124,7 @@ function MainTabs() {
                 component={MyReportStackScreen}
                 options={{
                     tabBarIcon: ({ focused }) => (
-                        <TabIcon emoji="📄" label="My Report" focused={focused} />
+                        <TabIcon emoji="📄" />
                     ),
                 }}
             />
@@ -140,7 +133,7 @@ function MainTabs() {
                 component={ProfileStackScreen}
                 options={{
                     tabBarIcon: ({ focused }) => (
-                        <TabIcon emoji="👤" label="Profile" focused={focused} />
+                        <TabIcon emoji="👤" />
                     ),
                 }}
             />
