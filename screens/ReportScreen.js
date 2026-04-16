@@ -80,24 +80,45 @@ export default function ReportScreen({ navigation }) {
                 onPress: async () => {
                     const { status } = await ImagePicker.requestCameraPermissionsAsync();
                     if (status !== 'granted') {
-                        Alert.alert('Permission needed', 'Camera access is required.');
+                        Alert.alert('Permission needed', 'Please enable camera access in your device Settings.');
                         return;
                     }
-                    const result = await ImagePicker.launchCameraAsync({
-                        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                        quality: 0.8,
-                    });
-                    if (!result.canceled) handleImageSelected(result.assets[0].uri);
+                    try {
+                        const result = await ImagePicker.launchCameraAsync({
+                            mediaTypes: ['images'],
+                            quality: 0.8,
+                            allowsEditing: true,
+                        });
+                        if (!result.canceled && result.assets?.[0]?.uri) {
+                            handleImageSelected(result.assets[0].uri);
+                        }
+                    } catch (e) {
+                        console.log('Camera error:', e.message);
+                        Alert.alert('Error', 'Could not open camera. Please try gallery instead.');
+                    }
                 },
             },
             {
                 text: 'Gallery',
                 onPress: async () => {
-                    const result = await ImagePicker.launchImageLibraryAsync({
-                        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                        quality: 0.8,
-                    });
-                    if (!result.canceled) handleImageSelected(result.assets[0].uri);
+                    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                    if (status !== 'granted') {
+                        Alert.alert('Permission needed', 'Please enable photo library access in your device Settings.');
+                        return;
+                    }
+                    try {
+                        const result = await ImagePicker.launchImageLibraryAsync({
+                            mediaTypes: ['images'],
+                            quality: 0.8,
+                            allowsEditing: true,
+                        });
+                        if (!result.canceled && result.assets?.[0]?.uri) {
+                            handleImageSelected(result.assets[0].uri);
+                        }
+                    } catch (e) {
+                        console.log('Gallery error:', e.message);
+                        Alert.alert('Error', 'Could not open gallery.');
+                    }
                 },
             },
             { text: 'Cancel', style: 'cancel' },

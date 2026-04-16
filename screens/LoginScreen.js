@@ -73,11 +73,6 @@ export default function LoginScreen({ navigation }) {
             >
                 <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
-                    {/* Header */}
-                    <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-                        <Text style={styles.backArrow}>←</Text>
-                    </TouchableOpacity>
-
                     <Text style={styles.heading}>
                         {tab === 'login' ? 'Welcome Back' : 'Create an Account'}
                     </Text>
@@ -210,8 +205,6 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#fff' },
     scroll: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 16, paddingBottom: 40 },
-    backBtn: { marginBottom: 24 },
-    backArrow: { fontSize: 24, color: COLORS.primary },
     heading: {
         fontSize: 28,
         fontWeight: '700',

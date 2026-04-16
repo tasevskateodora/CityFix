@@ -3,23 +3,20 @@ import {
     View, Text, StyleSheet, Image, TouchableOpacity,
 } from 'react-native';
 import { COLORS, CATEGORY_COLORS, CATEGORY_LABELS, CATEGORY_ICONS } from '../constants/theme';
-import { likePost, unlikePost } from '../api/api';
-import { getImageUrl } from '../api/api';
+import { likePost, unlikePost, getImageUrl } from '../api/api';
 
-export default function PostCard({ post, onPress, currentUserId }) {
+export default function PostCard({ post, onPress, onLikeChange }) {
     const [likeCount, setLikeCount] = useState(post.likeCount || 0);
     const [liked, setLiked] = useState(post.likedByMe || false);
     const [likeLoading, setLikeLoading] = useState(false);
 
     const categoryColor = CATEGORY_COLORS[post.category] || COLORS.textSecondary;
-    const categoryLabel = CATEGORY_LABELS[post.category] || post.category;
+    const categoryLabel = CATEGORY_LABELS[post.category] || post.category || 'Other';
     const categoryIcon = CATEGORY_ICONS[post.category] || '📍';
 
     const timeAgo = (dateStr) => {
         if (!dateStr) return '';
-        const now = new Date();
-        const date = new Date(dateStr);
-        const diff = Math.floor((now - date) / 1000);
+        const diff = Math.floor((new Date() - new Date(dateStr)) / 1000);
         if (diff < 60) return 'just now';
         if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
         if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
@@ -34,10 +31,12 @@ export default function PostCard({ post, onPress, currentUserId }) {
                 await unlikePost(post.id);
                 setLikeCount((c) => c - 1);
                 setLiked(false);
+                onLikeChange && onLikeChange(post.id, likeCount - 1, false);
             } else {
                 await likePost(post.id);
                 setLikeCount((c) => c + 1);
                 setLiked(true);
+                onLikeChange && onLikeChange(post.id, likeCount + 1, true);
             }
         } catch (e) {
             console.log('Like error:', e);
@@ -47,6 +46,7 @@ export default function PostCard({ post, onPress, currentUserId }) {
     };
 
     const imageUrl = getImageUrl(post.imageUrl);
+    const hasImage = !!(imageUrl && imageUrl.startsWith('http'));
 
     return (
         <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.95}>
@@ -74,19 +74,20 @@ export default function PostCard({ post, onPress, currentUserId }) {
             </Text>
 
             {/* Image */}
-            {imageUrl && (
+            {hasImage && (
                 <Image
                     source={{ uri: imageUrl }}
                     style={styles.image}
                     resizeMode="cover"
+                    onError={() => {}}
                 />
             )}
 
-            {/* Actions */}
+            {/* Actions — no share button */}
             <View style={styles.actions}>
                 <TouchableOpacity style={styles.actionBtn} onPress={handleLike}>
-                    <Text style={styles.actionIcon}>{liked ? '👍' : '👍'}</Text>
-                    <Text style={[styles.actionText, liked && { color: COLORS.primary }]}>
+                    <Text style={styles.actionIcon}>👍</Text>
+                    <Text style={[styles.actionText, liked && { color: COLORS.primary, fontWeight: '600' }]}>
                         {likeCount}
                     </Text>
                 </TouchableOpacity>
@@ -94,10 +95,6 @@ export default function PostCard({ post, onPress, currentUserId }) {
                 <TouchableOpacity style={styles.actionBtn} onPress={onPress}>
                     <Text style={styles.actionIcon}>💬</Text>
                     <Text style={styles.actionText}>{post.commentCount || 0}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.actionBtn}>
-                    <Text style={styles.actionIcon}>↗️</Text>
                 </TouchableOpacity>
             </View>
         </TouchableOpacity>
@@ -119,31 +116,20 @@ const styles = StyleSheet.create({
     },
     header: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
     avatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 40, height: 40, borderRadius: 20,
         backgroundColor: COLORS.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 10,
+        alignItems: 'center', justifyContent: 'center', marginRight: 10,
     },
     avatarText: { color: '#fff', fontWeight: '700', fontSize: 16 },
     headerInfo: { flex: 1 },
     username: { fontWeight: '600', fontSize: 14, color: COLORS.text },
     time: { fontSize: 12, color: COLORS.textLight, marginTop: 1 },
-    categoryBadge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 20,
-    },
+    categoryBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
     categoryText: { fontSize: 12, fontWeight: '600' },
     description: { fontSize: 14, color: COLORS.text, lineHeight: 20, marginBottom: 12 },
     image: {
-        width: '100%',
-        height: 200,
-        borderRadius: 12,
-        marginBottom: 12,
-        backgroundColor: COLORS.border,
+        width: '100%', height: 200, borderRadius: 12,
+        marginBottom: 12, backgroundColor: COLORS.border,
     },
     actions: { flexDirection: 'row', gap: 16 },
     actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },

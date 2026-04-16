@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, CATEGORY_COLORS, CATEGORY_LABELS, CATEGORY_ICONS, STATUS_COLORS, STATUS_LABELS } from '../constants/theme';
-import { getComments, addComment, likePost, unlikePost, getImageUrl } from '../api/api';
+import { getComments, addComment, likePost, unlikePost, getLikes, getImageUrl } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function PostDetailScreen({ route, navigation }) {
@@ -24,10 +24,22 @@ export default function PostDetailScreen({ route, navigation }) {
     const statusColor = STATUS_COLORS[post.status] || COLORS.textSecondary;
     const statusLabel = STATUS_LABELS[post.status] || post.status;
     const imageUrl = getImageUrl(post.imageUrl);
+    const hasImage = !!(imageUrl && typeof imageUrl === 'string' && imageUrl.length > 10 && imageUrl.startsWith('http'));
 
     useEffect(() => {
         fetchComments();
+        fetchLikes();
     }, []);
+
+    const fetchLikes = async () => {
+        try {
+            const res = await getLikes(post.id);
+            setLikeCount(res.data.likeCount);
+            setLiked(res.data.likedByMe);
+        } catch (e) {
+            console.log('Likes error:', e);
+        }
+    };
 
     const fetchComments = async () => {
         try {
@@ -115,8 +127,8 @@ export default function PostDetailScreen({ route, navigation }) {
                     </View>
 
                     {/* Image */}
-                    {imageUrl && (
-                        <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
+                    {hasImage && (
+                        <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" onError={() => {}} />
                     )}
 
                     {/* Category + description */}
@@ -139,10 +151,10 @@ export default function PostDetailScreen({ route, navigation }) {
                         )}
                     </View>
 
-                    {/* Like */}
+                    {/* Like — no share button */}
                     <View style={styles.actionsRow}>
                         <TouchableOpacity style={styles.likeBtn} onPress={handleLike}>
-                            <Text style={styles.likeIcon}>{liked ? '👍' : '👍'}</Text>
+                            <Text style={styles.likeIcon}>👍</Text>
                             <Text style={[styles.likeCount, liked && { color: COLORS.primary }]}>
                                 {likeCount} likes
                             </Text>

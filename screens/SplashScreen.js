@@ -1,14 +1,16 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Animated, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { COLORS } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 
 export default function SplashScreen({ navigation }) {
     const { user, loading } = useAuth();
-    const fadeAnim = new Animated.Value(0);
-    const scaleAnim = new Animated.Value(0.8);
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const scaleAnim = useRef(new Animated.Value(0.8)).current;
+    const buttonAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
+        // Animate logo in
         Animated.parallel([
             Animated.timing(fadeAnim, {
                 toValue: 1,
@@ -21,20 +23,23 @@ export default function SplashScreen({ navigation }) {
                 friction: 7,
                 useNativeDriver: true,
             }),
-        ]).start();
+        ]).start(() => {
+            // After logo appears, fade in the button
+            Animated.timing(buttonAnim, {
+                toValue: 1,
+                duration: 500,
+                useNativeDriver: true,
+            }).start();
+        });
     }, []);
 
-    useEffect(() => {
-        if (!loading) {
-            setTimeout(() => {
-                if (user) {
-                    navigation.replace('MainTabs');
-                } else {
-                    navigation.replace('Onboarding');
-                }
-            }, 1800);
+    const handleStart = () => {
+        if (user) {
+            navigation.replace('MainTabs');
+        } else {
+            navigation.replace('Onboarding');
         }
-    }, [loading, user]);
+    };
 
     return (
         <View style={styles.container}>
@@ -46,6 +51,16 @@ export default function SplashScreen({ navigation }) {
                 </View>
                 <Text style={styles.title}>Cityfix</Text>
                 <Text style={styles.subtitle}>Report issues, improve your city.</Text>
+            </Animated.View>
+
+            <Animated.View style={[styles.buttonWrapper, { opacity: buttonAnim }]}>
+                {loading ? (
+                    <ActivityIndicator size="small" color="rgba(255,255,255,0.7)" />
+                ) : (
+                    <TouchableOpacity style={styles.startBtn} onPress={handleStart} activeOpacity={0.85}>
+                        <Text style={styles.startBtnText}>Get Started</Text>
+                    </TouchableOpacity>
+                )}
             </Animated.View>
         </View>
     );
@@ -79,5 +94,24 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: 'rgba(255,255,255,0.8)',
         marginTop: 8,
+    },
+    buttonWrapper: {
+        position: 'absolute',
+        bottom: 60,
+        left: 24,
+        right: 24,
+        alignItems: 'center',
+    },
+    startBtn: {
+        width: '100%',
+        backgroundColor: '#fff',
+        paddingVertical: 16,
+        borderRadius: 14,
+        alignItems: 'center',
+    },
+    startBtnText: {
+        color: COLORS.primary,
+        fontSize: 16,
+        fontWeight: '700',
     },
 });

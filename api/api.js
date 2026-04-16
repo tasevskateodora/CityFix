@@ -49,6 +49,10 @@ export const reverseGeocode = (lat, lng) =>
 
 export const getImageUrl = (url) => {
     if (!url) return null;
-    if (url.startsWith('http')) return url;
-    return `${BASE_URL}${url}`;
+    if (typeof url !== 'string') return null;
+    const trimmed = url.trim();
+    if (trimmed === '' || trimmed === 'null' || trimmed === 'undefined') return null;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    if (trimmed.startsWith('/')) return `${BASE_URL}${trimmed}`;
+    return null;
 };

@@ -1,21 +1,23 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-    Dimensions, Image, ScrollView,
+    Image, TextInput, FlatList, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Marker, Callout } from 'react-native-maps';
+import { useFocusEffect } from '@react-navigation/native';
+import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { COLORS, CATEGORY_COLORS, CATEGORY_ICONS } from '../constants/theme';
+import { COLORS, CATEGORY_COLORS, CATEGORY_ICONS, CATEGORY_LABELS } from '../constants/theme';
 import { getAllPosts, getImageUrl } from '../api/api';
-
-const { width } = Dimensions.get('window');
 
 export default function MapScreen({ navigation }) {
     const [posts, setPosts] = useState([]);
+    const [filteredPosts, setFilteredPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [userLocation, setUserLocation] = useState(null);
     const [selectedPost, setSelectedPost] = useState(null);
+    const [search, setSearch] = useState('');
+    const [suggestions, setSuggestions] = useState([]);
     const mapRef = useRef(null);
 
     const DEFAULT_REGION = {
@@ -25,15 +27,19 @@ export default function MapScreen({ navigation }) {
         longitudeDelta: 0.05,
     };
 
-    useEffect(() => {
-        fetchPosts();
-        getLocation();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            fetchPosts();
+            getLocation();
+        }, [])
+    );
 
     const fetchPosts = async () => {
         try {
             const res = await getAllPosts();
-            setPosts(res.data.filter((p) => p.latitude && p.longitude));
+            const withCoords = res.data.filter((p) => p.latitude && p.longitude);
+            setPosts(withCoords);
+            setFilteredPosts(withCoords);
         } catch (e) {
             console.log('Map fetch error:', e);
         } finally {
@@ -45,7 +51,9 @@ export default function MapScreen({ navigation }) {
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status === 'granted') {
-                const loc = await Location.getCurrentPositionAsync({});
+                const loc = await Location.getCurrentPositionAsync({
+                    accuracy: Location.Accuracy.Balanced,
+                });
                 setUserLocation(loc.coords);
             }
         } catch (e) {
@@ -64,14 +72,93 @@ export default function MapScreen({ navigation }) {
         }
     };
 
+    // Search filters posts by description, category or username
+    const handleSearch = (text) => {
+        setSearch(text);
+        if (!text.trim()) {
+            setFilteredPosts(posts);
+            setSuggestions([]);
+            return;
+        }
+        const lower = text.toLowerCase();
+        const matched = posts.filter(
+            (p) =>
+                p.description?.toLowerCase().includes(lower) ||
+                p.category?.toLowerCase().includes(lower) ||
+                p.username?.toLowerCase().includes(lower) ||
+                CATEGORY_LABELS[p.category]?.toLowerCase().includes(lower)
+        );
+        setFilteredPosts(matched);
+        setSuggestions(matched.slice(0, 5));
+    };
+
+    const handleSelectSuggestion = (post) => {
+        setSearch(post.description?.substring(0, 40) || '');
+        setSuggestions([]);
+        setSelectedPost(post);
+        Keyboard.dismiss();
+        if (mapRef.current) {
+            mapRef.current.animateToRegion({
+                latitude: parseFloat(post.latitude),
+                longitude: parseFloat(post.longitude),
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+            });
+        }
+    };
+
+    const handleClearSearch = () => {
+        setSearch('');
+        setSuggestions([]);
+        setFilteredPosts(posts);
+        Keyboard.dismiss();
+    };
+
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
-            {/* Search bar overlay */}
-            <View style={styles.searchOverlay}>
+            {/* Search bar */}
+            <View style={styles.searchWrapper}>
                 <View style={styles.searchBar}>
                     <Text style={styles.searchIcon}>🔍</Text>
-                    <Text style={styles.searchPlaceholder}>Search location or issue...</Text>
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search reports, categories..."
+                        placeholderTextColor={COLORS.textLight}
+                        value={search}
+                        onChangeText={handleSearch}
+                        returnKeyType="search"
+                    />
+                    {search.length > 0 && (
+                        <TouchableOpacity onPress={handleClearSearch}>
+                            <Text style={styles.clearIcon}>✕</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
+
+                {/* Search suggestions */}
+                {suggestions.length > 0 && (
+                    <View style={styles.suggestions}>
+                        {suggestions.map((item) => (
+                            <TouchableOpacity
+                                key={item.id}
+                                style={styles.suggestionItem}
+                                onPress={() => handleSelectSuggestion(item)}
+                            >
+                                <Text style={styles.suggestionIcon}>
+                                    {CATEGORY_ICONS[item.category] || '📍'}
+                                </Text>
+                                <View style={styles.suggestionText}>
+                                    <Text style={styles.suggestionTitle} numberOfLines={1}>
+                                        {item.description}
+                                    </Text>
+                                    <Text style={styles.suggestionSub}>
+                                        {CATEGORY_LABELS[item.category] || item.category} · {item.username}
+                                    </Text>
+                                </View>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                )}
             </View>
 
             {loading ? (
@@ -94,24 +181,38 @@ export default function MapScreen({ navigation }) {
                     }
                     showsUserLocation
                     showsMyLocationButton={false}
+                    onPress={() => {
+                        setSelectedPost(null);
+                        setSuggestions([]);
+                        Keyboard.dismiss();
+                    }}
                 >
-                    {posts.map((post) => (
+                    {filteredPosts.map((post) => (
                         <Marker
                             key={post.id}
                             coordinate={{
                                 latitude: parseFloat(post.latitude),
                                 longitude: parseFloat(post.longitude),
                             }}
-                            onPress={() => setSelectedPost(post)}
+                            onPress={() => {
+                                setSelectedPost(post);
+                                setSuggestions([]);
+                            }}
                         >
-                            <View style={[
-                                styles.markerContainer,
-                                { backgroundColor: CATEGORY_COLORS[post.category] || COLORS.primary }
-                            ]}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.markerContainer,
+                                    { backgroundColor: CATEGORY_COLORS[post.category] || COLORS.primary },
+                                    selectedPost?.id === post.id && styles.markerSelected,
+                                ]}
+                                onPress={() => {
+                                    navigation.navigate('PostDetail', { post });
+                                }}
+                            >
                                 <Text style={styles.markerIcon}>
                                     {CATEGORY_ICONS[post.category] || '📍'}
                                 </Text>
-                            </View>
+                            </TouchableOpacity>
                         </Marker>
                     ))}
                 </MapView>
@@ -121,6 +222,15 @@ export default function MapScreen({ navigation }) {
             <TouchableOpacity style={styles.locationBtn} onPress={centerOnUser}>
                 <Text style={styles.locationBtnIcon}>📍</Text>
             </TouchableOpacity>
+
+            {/* Results count when searching */}
+            {search.length > 0 && (
+                <View style={styles.resultsCount}>
+                    <Text style={styles.resultsCountText}>
+                        {filteredPosts.length} result{filteredPosts.length !== 1 ? 's' : ''}
+                    </Text>
+                </View>
+            )}
 
             {/* Selected post preview */}
             {selectedPost && (
@@ -140,11 +250,12 @@ export default function MapScreen({ navigation }) {
                         }}
                     >
                         <View style={styles.previewContent}>
-                            {selectedPost.imageUrl && (
+                            {!!(selectedPost.imageUrl && getImageUrl(selectedPost.imageUrl)?.startsWith('http')) && (
                                 <Image
                                     source={{ uri: getImageUrl(selectedPost.imageUrl) }}
                                     style={styles.previewImage}
                                     resizeMode="cover"
+                                    onError={() => {}}
                                 />
                             )}
                             <View style={styles.previewInfo}>
@@ -154,7 +265,7 @@ export default function MapScreen({ navigation }) {
                                             {(selectedPost.username || 'U').charAt(0).toUpperCase()}
                                         </Text>
                                     </View>
-                                    <View>
+                                    <View style={{ flex: 1 }}>
                                         <Text style={styles.previewUsername}>{selectedPost.username}</Text>
                                         <View style={[
                                             styles.previewCat,
@@ -164,7 +275,7 @@ export default function MapScreen({ navigation }) {
                                                 styles.previewCatText,
                                                 { color: CATEGORY_COLORS[selectedPost.category] || COLORS.primary }
                                             ]}>
-                                                {CATEGORY_ICONS[selectedPost.category]} {selectedPost.category}
+                                                {CATEGORY_ICONS[selectedPost.category]} {CATEGORY_LABELS[selectedPost.category] || selectedPost.category}
                                             </Text>
                                         </View>
                                     </View>
@@ -186,12 +297,12 @@ const styles = StyleSheet.create({
     container: { flex: 1 },
     map: { flex: 1 },
     loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-    searchOverlay: {
+    searchWrapper: {
         position: 'absolute',
         top: 100,
         left: 16,
         right: 16,
-        zIndex: 10,
+        zIndex: 20,
     },
     searchBar: {
         flexDirection: 'row',
@@ -202,88 +313,95 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.12,
         shadowRadius: 8,
-        elevation: 4,
+        elevation: 5,
         gap: 8,
     },
     searchIcon: { fontSize: 16 },
-    searchPlaceholder: { fontSize: 14, color: COLORS.textLight },
-    markerContainer: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: '#fff',
+    searchInput: { flex: 1, fontSize: 14, color: COLORS.text },
+    clearIcon: { fontSize: 14, color: COLORS.textLight, padding: 4 },
+    suggestions: {
+        backgroundColor: '#fff',
+        borderRadius: 14,
+        marginTop: 6,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4,
+        overflow: 'hidden',
+    },
+    suggestionItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+        gap: 10,
+    },
+    suggestionIcon: { fontSize: 20 },
+    suggestionText: { flex: 1 },
+    suggestionTitle: { fontSize: 13, fontWeight: '600', color: COLORS.text },
+    suggestionSub: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+    markerContainer: {
+        width: 36, height: 36, borderRadius: 18,
+        alignItems: 'center', justifyContent: 'center',
+        borderWidth: 2, borderColor: '#fff',
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2, shadowRadius: 4, elevation: 3,
+    },
+    markerSelected: {
+        width: 44, height: 44, borderRadius: 22,
+        borderWidth: 3, borderColor: COLORS.primary,
     },
     markerIcon: { fontSize: 16 },
     locationBtn: {
         position: 'absolute',
         bottom: 200,
         right: 16,
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+        width: 48, height: 48, borderRadius: 24,
         backgroundColor: '#fff',
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
+        alignItems: 'center', justifyContent: 'center',
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1, shadowRadius: 8, elevation: 4,
     },
     locationBtnIcon: { fontSize: 22 },
+    resultsCount: {
+        position: 'absolute',
+        bottom: 200,
+        left: 16,
+        backgroundColor: COLORS.primary,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+    },
+    resultsCountText: { color: '#fff', fontSize: 12, fontWeight: '600' },
     postPreview: {
         position: 'absolute',
         bottom: 20,
-        left: 16,
-        right: 16,
+        left: 16, right: 16,
         backgroundColor: '#fff',
         borderRadius: 20,
         padding: 16,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 8,
+        shadowOpacity: 0.1, shadowRadius: 12, elevation: 8,
     },
-    previewClose: {
-        position: 'absolute',
-        top: 12,
-        right: 12,
-        zIndex: 10,
-        padding: 4,
-    },
+    previewClose: { position: 'absolute', top: 12, right: 12, zIndex: 10, padding: 4 },
     previewCloseIcon: { fontSize: 16, color: COLORS.textSecondary },
     previewContent: { flexDirection: 'row', gap: 12 },
-    previewImage: {
-        width: 80,
-        height: 80,
-        borderRadius: 12,
-        backgroundColor: COLORS.border,
-    },
+    previewImage: { width: 80, height: 80, borderRadius: 12, backgroundColor: COLORS.border },
     previewInfo: { flex: 1, gap: 6 },
     previewHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     previewAvatar: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        backgroundColor: COLORS.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
+        width: 28, height: 28, borderRadius: 14,
+        backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
     },
     previewAvatarText: { color: '#fff', fontWeight: '700', fontSize: 12 },
-    previewCat: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+    previewCat: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
     previewCatText: { fontSize: 11, fontWeight: '600' },
-    previewUsername: { fontSize: 13, fontWeight: '600', color: COLORS.text },
+    previewUsername: { fontSize: 13, fontWeight: '600', color: COLORS.text, marginBottom: 2 },
     previewDescription: { fontSize: 13, color: COLORS.text, lineHeight: 18 },
     previewTap: { fontSize: 12, color: COLORS.primary, fontWeight: '500' },
 });
