@@ -1,29 +1,56 @@
 {
   "expo": {
     "name": "CityFix",
-    "slug": "CityFix",
+    "slug": "cityfix",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#2563EB"
     },
+    "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.yourname.cityfix",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "CityFix needs your location to tag problem reports.",
+        "NSCameraUsageDescription": "CityFix needs camera access to take photos of issues.",
+        "NSPhotoLibraryUsageDescription": "CityFix needs photo library access to attach images to reports."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#2563EB"
       },
-      "edgeToEdgeEnabled": true
+      "package": "com.yourname.cityfix",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow CityFix to use your location."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow CityFix to access your photos.",
+          "cameraPermission": "Allow CityFix to use your camera."
+        }
+      ]
+    ]
   }
 }
