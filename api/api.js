@@ -5,7 +5,8 @@ export const register = (data) => client.post('/api/users', data);
 export const login = (data) => client.post('/api/auth/login', data);
 
 // Posts
-export const getAllPosts = () => client.get('/api/posts');
+export const getAllPosts = (page = 0, size = 20) =>
+    client.get(`/api/posts?page=${page}&size=${size}`);
 export const getPostsByUser = (userId) => client.get(`/api/posts/user/${userId}`);
 export const createPost = (data) => client.post('/api/posts/create', data);
 export const updatePostStatus = (postId, status) =>

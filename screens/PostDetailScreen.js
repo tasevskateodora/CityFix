@@ -178,6 +178,15 @@ export default function PostDetailScreen({ route, navigation }) {
                         </View>
                         <Text style={styles.description}>{post.description}</Text>
 
+                        {/* Priority badge */}
+                        {post.priorityScore > 0 && (
+                            <View style={styles.priorityBadge}>
+                                <Text style={styles.priorityText}>
+                                    🔥 Reported {post.priorityScore + 1}x — High Priority
+                                </Text>
+                            </View>
+                        )}
+
                         {/* Location */}
                         {(post.latitude && post.longitude) && (
                             <View style={styles.locationRow}>
@@ -300,6 +309,14 @@ const styles = StyleSheet.create({
     catBadge: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
     catText: { fontSize: 13, fontWeight: '600' },
     description: { fontSize: 15, color: COLORS.text, lineHeight: 22 },
+    priorityBadge: {
+        backgroundColor: '#FEF3C7',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        alignSelf: 'flex-start',
+    },
+    priorityText: { fontSize: 13, color: '#B45309', fontWeight: '600' },
     locationRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     locationIcon: { fontSize: 14 },
     locationText: { fontSize: 13, color: COLORS.textSecondary },

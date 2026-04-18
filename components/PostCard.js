@@ -83,6 +83,15 @@ export default function PostCard({ post, onPress, onLikeChange }) {
                 {post.description}
             </Text>
 
+            {/* Priority badge */}
+            {post.priorityScore > 0 && (
+                <View style={styles.priorityBadge}>
+                    <Text style={styles.priorityText}>
+                        🔥 Reported {post.priorityScore + 1}x — High Priority
+                    </Text>
+                </View>
+            )}
+
             {/* Image */}
             {hasImage && (
                 <Image
@@ -138,7 +147,19 @@ const styles = StyleSheet.create({
     time: { fontSize: 12, color: COLORS.textLight, marginTop: 1 },
     categoryBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
     categoryText: { fontSize: 12, fontWeight: '600' },
-    description: { fontSize: 14, color: COLORS.text, lineHeight: 20, marginBottom: 12 },
+    priorityBadge: {
+        backgroundColor: '#FEF3C7',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        marginBottom: 8,
+        alignSelf: 'flex-start',
+    },
+    priorityText: {
+        fontSize: 12,
+        color: '#B45309',
+        fontWeight: '600',
+    },
     image: {
         width: '100%', height: 200, borderRadius: 12,
         marginBottom: 12, backgroundColor: COLORS.border,

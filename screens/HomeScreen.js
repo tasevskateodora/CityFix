@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TouchableOpacity,
     TextInput, RefreshControl, ActivityIndicator, ScrollView,
@@ -11,36 +11,56 @@ import PostCard from '../components/PostCard';
 import { useAuth } from '../context/AuthContext';
 
 const CATEGORIES = ['All', 'road_damage', 'traffic_signal', 'lighting', 'flooding', 'waste', 'sidewalk', 'vandalism'];
+const PAGE_SIZE = 20;
 
 export default function HomeScreen({ navigation }) {
     const [posts, setPosts] = useState([]);
     const [filtered, setFiltered] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+    const [page, setPage] = useState(0);
     const [search, setSearch] = useState('');
     const [activeCategory, setActiveCategory] = useState('All');
     const { user } = useAuth();
+    const currentPage = useRef(0);
+    const allPosts = useRef([]);
 
-    const fetchPosts = async () => {
+    const fetchPosts = async (pageNum = 0, replace = true) => {
         try {
-            const res = await getAllPosts();
-            const sorted = res.data.sort(
-                (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-            );
-            setPosts(sorted);
-            applyFilters(sorted, activeCategory, search);
+            const res = await getAllPosts(pageNum, PAGE_SIZE);
+            const data = res.data;
+
+            // Handle both paginated and non-paginated responses
+            const newPosts = data.content || data;
+            const more = data.hasMore ?? false;
+
+            if (replace) {
+                allPosts.current = newPosts;
+                setPosts(newPosts);
+            } else {
+                const combined = [...allPosts.current, ...newPosts];
+                allPosts.current = combined;
+                setPosts(combined);
+            }
+
+            setHasMore(more);
+            currentPage.current = pageNum;
+            applyFilters(replace ? newPosts : allPosts.current, activeCategory, search);
         } catch (e) {
             console.log('Fetch posts error:', e.message);
         } finally {
             setLoading(false);
             setRefreshing(false);
+            setLoadingMore(false);
         }
     };
 
-    // Refresh every time the Home tab comes into focus
     useFocusEffect(
         useCallback(() => {
-            fetchPosts();
+            setLoading(true);
+            fetchPosts(0, true);
         }, [])
     );
 
@@ -59,18 +79,25 @@ export default function HomeScreen({ navigation }) {
 
     const handleCategoryChange = (cat) => {
         setActiveCategory(cat);
-        applyFilters(posts, cat, search);
+        applyFilters(allPosts.current, cat, search);
     };
 
     const handleSearchChange = (text) => {
         setSearch(text);
-        applyFilters(posts, activeCategory, text);
+        applyFilters(allPosts.current, activeCategory, text);
     };
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
-        fetchPosts();
+        currentPage.current = 0;
+        fetchPosts(0, true);
     }, []);
+
+    const onLoadMore = () => {
+        if (loadingMore || !hasMore || search || activeCategory !== 'All') return;
+        setLoadingMore(true);
+        fetchPosts(currentPage.current + 1, false);
+    };
 
     const renderCategory = (cat) => {
         const isActive = activeCategory === cat;
@@ -83,7 +110,9 @@ export default function HomeScreen({ navigation }) {
                 onPress={() => handleCategoryChange(cat)}
             >
                 <Text style={styles.catIcon}>{icon}</Text>
-                <Text style={[styles.catText, isActive && styles.catTextActive]} numberOfLines={1}>{label}</Text>
+                <Text style={[styles.catText, isActive && styles.catTextActive]} numberOfLines={1}>
+                    {label}
+                </Text>
             </TouchableOpacity>
         );
     };
@@ -136,12 +165,22 @@ export default function HomeScreen({ navigation }) {
                         tintColor={COLORS.primary}
                     />
                 }
+                onEndReached={onLoadMore}
+                onEndReachedThreshold={0.3}
                 ListEmptyComponent={
                     <View style={styles.empty}>
                         <Text style={styles.emptyIcon}>📭</Text>
                         <Text style={styles.emptyText}>No posts found</Text>
                         <Text style={styles.emptySubtext}>Pull down to refresh</Text>
                     </View>
+                }
+                ListFooterComponent={
+                    loadingMore ? (
+                        <View style={styles.loadingMore}>
+                            <ActivityIndicator size="small" color={COLORS.primary} />
+                            <Text style={styles.loadingMoreText}>Loading more...</Text>
+                        </View>
+                    ) : null
                 }
                 renderItem={({ item }) => (
                     <PostCard
@@ -200,4 +239,12 @@ const styles = StyleSheet.create({
     emptyIcon: { fontSize: 48, marginBottom: 4 },
     emptyText: { fontSize: 16, fontWeight: '600', color: COLORS.text },
     emptySubtext: { fontSize: 14, color: COLORS.textSecondary },
+    loadingMore: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 16,
+        gap: 8,
+    },
+    loadingMoreText: { fontSize: 13, color: COLORS.textSecondary },
 });
