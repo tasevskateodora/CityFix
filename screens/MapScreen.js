@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-    Image, TextInput, FlatList, Keyboard,
+    Image, TextInput, Keyboard, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -72,7 +72,6 @@ export default function MapScreen({ navigation }) {
         }
     };
 
-    // Search filters posts by description, category or username
     const handleSearch = (text) => {
         setSearch(text);
         if (!text.trim()) {
@@ -114,6 +113,32 @@ export default function MapScreen({ navigation }) {
         Keyboard.dismiss();
     };
 
+    const handleMapLongPress = (e) => {
+        const { latitude, longitude } = e.nativeEvent.coordinate;
+        Alert.alert(
+            'Report an Issue Here?',
+            'Submit a report at this location?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Report Here',
+                    onPress: () => {
+                        navigation.navigate('Report', {
+                            screen: 'ReportMain',
+                            params: { prefillLatitude: latitude, prefillLongitude: longitude },
+                        });
+                    },
+                },
+            ]
+        );
+    };
+
+    const handleMapPress = () => {
+        setSelectedPost(null);
+        setSuggestions([]);
+        Keyboard.dismiss();
+    };
+
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             {/* Search bar */}
@@ -135,7 +160,7 @@ export default function MapScreen({ navigation }) {
                     )}
                 </View>
 
-                {/* Search suggestions */}
+                {/* Suggestions dropdown */}
                 {suggestions.length > 0 && (
                     <View style={styles.suggestions}>
                         {suggestions.map((item) => (
@@ -181,11 +206,8 @@ export default function MapScreen({ navigation }) {
                     }
                     showsUserLocation
                     showsMyLocationButton={false}
-                    onPress={() => {
-                        setSelectedPost(null);
-                        setSuggestions([]);
-                        Keyboard.dismiss();
-                    }}
+                    onPress={handleMapPress}
+                    onLongPress={handleMapLongPress}
                 >
                     {filteredPosts.map((post) => (
                         <Marker
@@ -205,9 +227,7 @@ export default function MapScreen({ navigation }) {
                                     { backgroundColor: CATEGORY_COLORS[post.category] || COLORS.primary },
                                     selectedPost?.id === post.id && styles.markerSelected,
                                 ]}
-                                onPress={() => {
-                                    navigation.navigate('PostDetail', { post });
-                                }}
+                                onPress={() => navigation.navigate('PostDetail', { post })}
                             >
                                 <Text style={styles.markerIcon}>
                                     {CATEGORY_ICONS[post.category] || '📍'}
@@ -216,6 +236,13 @@ export default function MapScreen({ navigation }) {
                         </Marker>
                     ))}
                 </MapView>
+            )}
+
+            {/* Long press hint */}
+            {!loading && (
+                <View style={styles.hintBox}>
+                    <Text style={styles.hintText}>💡 Long press to report an issue here</Text>
+                </View>
             )}
 
             {/* My location button */}
@@ -241,7 +268,6 @@ export default function MapScreen({ navigation }) {
                     >
                         <Text style={styles.previewCloseIcon}>✕</Text>
                     </TouchableOpacity>
-
                     <TouchableOpacity
                         activeOpacity={0.9}
                         onPress={() => {
@@ -269,11 +295,11 @@ export default function MapScreen({ navigation }) {
                                         <Text style={styles.previewUsername}>{selectedPost.username}</Text>
                                         <View style={[
                                             styles.previewCat,
-                                            { backgroundColor: (CATEGORY_COLORS[selectedPost.category] || COLORS.primary) + '20' }
+                                            { backgroundColor: (CATEGORY_COLORS[selectedPost.category] || COLORS.primary) + '20' },
                                         ]}>
                                             <Text style={[
                                                 styles.previewCatText,
-                                                { color: CATEGORY_COLORS[selectedPost.category] || COLORS.primary }
+                                                { color: CATEGORY_COLORS[selectedPost.category] || COLORS.primary },
                                             ]}>
                                                 {CATEGORY_ICONS[selectedPost.category]} {CATEGORY_LABELS[selectedPost.category] || selectedPost.category}
                                             </Text>
@@ -296,7 +322,9 @@ export default function MapScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     map: { flex: 1 },
-    loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+    loadingContainer: {
+        flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff',
+    },
     searchWrapper: {
         position: 'absolute',
         top: 100,
@@ -344,6 +372,16 @@ const styles = StyleSheet.create({
     suggestionText: { flex: 1 },
     suggestionTitle: { fontSize: 13, fontWeight: '600', color: COLORS.text },
     suggestionSub: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+    hintBox: {
+        position: 'absolute',
+        top: 160,
+        alignSelf: 'center',
+        backgroundColor: 'rgba(0,0,0,0.55)',
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        borderRadius: 20,
+    },
+    hintText: { color: '#fff', fontSize: 12 },
     markerContainer: {
         width: 36, height: 36, borderRadius: 18,
         alignItems: 'center', justifyContent: 'center',
@@ -358,7 +396,7 @@ const styles = StyleSheet.create({
     markerIcon: { fontSize: 16 },
     locationBtn: {
         position: 'absolute',
-        bottom: 200,
+        bottom: 220,
         right: 16,
         width: 48, height: 48, borderRadius: 24,
         backgroundColor: '#fff',
@@ -369,7 +407,7 @@ const styles = StyleSheet.create({
     locationBtnIcon: { fontSize: 22 },
     resultsCount: {
         position: 'absolute',
-        bottom: 200,
+        bottom: 220,
         left: 16,
         backgroundColor: COLORS.primary,
         paddingHorizontal: 12,
@@ -388,10 +426,14 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: -2 },
         shadowOpacity: 0.1, shadowRadius: 12, elevation: 8,
     },
-    previewClose: { position: 'absolute', top: 12, right: 12, zIndex: 10, padding: 4 },
+    previewClose: {
+        position: 'absolute', top: 12, right: 12, zIndex: 10, padding: 4,
+    },
     previewCloseIcon: { fontSize: 16, color: COLORS.textSecondary },
     previewContent: { flexDirection: 'row', gap: 12 },
-    previewImage: { width: 80, height: 80, borderRadius: 12, backgroundColor: COLORS.border },
+    previewImage: {
+        width: 80, height: 80, borderRadius: 12, backgroundColor: COLORS.border,
+    },
     previewInfo: { flex: 1, gap: 6 },
     previewHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     previewAvatar: {
@@ -399,7 +441,9 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
     },
     previewAvatarText: { color: '#fff', fontWeight: '700', fontSize: 12 },
-    previewCat: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+    previewCat: {
+        alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10,
+    },
     previewCatText: { fontSize: 11, fontWeight: '600' },
     previewUsername: { fontSize: 13, fontWeight: '600', color: COLORS.text, marginBottom: 2 },
     previewDescription: { fontSize: 13, color: COLORS.text, lineHeight: 18 },

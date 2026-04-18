@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, Image, ScrollView, TextInput,
-    TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator,
+    TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, CATEGORY_COLORS, CATEGORY_LABELS, CATEGORY_ICONS, STATUS_COLORS, STATUS_LABELS } from '../constants/theme';
-import { getComments, addComment, likePost, unlikePost, getLikes, getImageUrl } from '../api/api';
+import { getComments, addComment, likePost, unlikePost, getLikes, getImageUrl, deletePost } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function PostDetailScreen({ route, navigation }) {
@@ -82,6 +82,30 @@ export default function PostDetailScreen({ route, navigation }) {
         }
     };
 
+    const isMyPost = user?.id === post.userId;
+
+    const handleDelete = () => {
+        Alert.alert(
+            'Delete Report',
+            'Are you sure you want to delete this report? This cannot be undone.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await deletePost(post.id);
+                            navigation.goBack();
+                        } catch (e) {
+                            Alert.alert('Error', 'Could not delete the report. Please try again.');
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
     const timeAgo = (dateStr) => {
         if (!dateStr) return '';
         const now = new Date();
@@ -106,7 +130,13 @@ export default function PostDetailScreen({ route, navigation }) {
                         <Text style={styles.backIcon}>←</Text>
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Report</Text>
-                    <View style={{ width: 36 }} />
+                    {isMyPost ? (
+                        <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn}>
+                            <Text style={styles.deleteIcon}>🗑️</Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <View style={{ width: 36 }} />
+                    )}
                 </View>
 
                 <ScrollView contentContainerStyle={styles.scroll}>
@@ -243,6 +273,8 @@ const styles = StyleSheet.create({
     },
     backBtn: { padding: 4 },
     backIcon: { fontSize: 22, color: COLORS.primary },
+    deleteBtn: { padding: 4 },
+    deleteIcon: { fontSize: 20 },
     headerTitle: { fontSize: 17, fontWeight: '600', color: COLORS.text },
     scroll: { paddingBottom: 16 },
     authorRow: {

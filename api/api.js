@@ -43,6 +43,8 @@ export const uploadImage = async (uri) => {
     return response.data.imageUrl;
 };
 
+export const deletePost = (postId) => client.delete(`/api/posts/${postId}`);
+
 // Geocode
 export const reverseGeocode = (lat, lng) =>
     client.get(`/api/posts/geocode/reverse?lat=${lat}&lng=${lng}`);

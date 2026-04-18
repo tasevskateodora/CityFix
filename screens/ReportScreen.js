@@ -9,7 +9,7 @@ import * as Location from 'expo-location';
 import { COLORS } from '../constants/theme';
 import { uploadImage, createPost, reverseGeocode } from '../api/api';
 
-export default function ReportScreen({ navigation }) {
+export default function ReportScreen({ navigation, route }) {
     const [description, setDescription] = useState('');
     const [imageUri, setImageUri] = useState(null);
     const [imageUrl, setImageUrl] = useState(null);
@@ -21,8 +21,20 @@ export default function ReportScreen({ navigation }) {
     const [classifying, setClassifying] = useState(false);
 
     useEffect(() => {
-        getLocation();
-    }, []);
+        // Check if coordinates were passed from the map
+        const prefillLat = route?.params?.prefillLatitude;
+        const prefillLng = route?.params?.prefillLongitude;
+        if (prefillLat && prefillLng) {
+            setLocation({ latitude: prefillLat, longitude: prefillLng });
+            setLocationAddress(`${prefillLat.toFixed(4)}, ${prefillLng.toFixed(4)}`);
+            // Try to reverse geocode the prefilled location
+            reverseGeocode(prefillLat, prefillLng)
+                .then((res) => setLocationAddress(res.data.address || `${prefillLat.toFixed(4)}, ${prefillLng.toFixed(4)}`))
+                .catch(() => {});
+        } else {
+            getLocation();
+        }
+    }, [route?.params]);
 
     const getLocation = async () => {
         setLoadingLocation(true);
