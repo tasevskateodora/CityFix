@@ -44,6 +44,7 @@ export const uploadImage = async (uri) => {
     return response.data.imageUrl;
 };
 
+export const updatePost = (postId, data) => client.put(`/api/posts/${postId}`, data);
 export const deletePost = (postId) => client.delete(`/api/posts/${postId}`);
 
 // Geocode

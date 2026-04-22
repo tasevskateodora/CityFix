@@ -261,15 +261,27 @@ export default function ReportScreen({ navigation, route }) {
                     </View>
 
                     {/* Description */}
-                    <Text style={styles.label}>Add Description</Text>
+                    <View style={styles.labelRow}>
+                        <Text style={styles.label}>Add Description</Text>
+                        <Text style={[
+                            styles.charCount,
+                            description.length > 480 && styles.charCountWarning,
+                            description.length >= 500 && styles.charCountError,
+                        ]}>
+                            {description.length}/500
+                        </Text>
+                    </View>
                     <TextInput
                         style={[styles.input, styles.textArea]}
                         placeholder="Briefly describe the issue..."
                         placeholderTextColor={COLORS.textLight}
                         value={description}
-                        onChangeText={setDescription}
+                        onChangeText={(text) => {
+                            if (text.length <= 500) setDescription(text);
+                        }}
                         multiline
                         numberOfLines={4}
+                        maxLength={500}
                     />
 
                     {/* Location */}
@@ -382,6 +394,16 @@ const styles = StyleSheet.create({
         marginBottom: 6,
         marginTop: 4,
     },
+    labelRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 6,
+        marginTop: 4,
+    },
+    charCount: { fontSize: 12, color: COLORS.textSecondary },
+    charCountWarning: { color: '#F59E0B' },
+    charCountError: { color: '#EF4444', fontWeight: '600' },
     input: {
         backgroundColor: COLORS.background,
         borderRadius: 12,

@@ -27,26 +27,6 @@ export default function MapScreen({ navigation }) {
         longitudeDelta: 0.05,
     };
 
-    useFocusEffect(
-        useCallback(() => {
-            fetchPosts();
-            getLocation();
-        }, [])
-    );
-
-    const fetchPosts = async () => {
-        try {
-            const res = await getAllPosts();
-            const withCoords = res.data.filter((p) => p.latitude && p.longitude);
-            setPosts(withCoords);
-            setFilteredPosts(withCoords);
-        } catch (e) {
-            console.log('Map fetch error:', e);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const getLocation = async () => {
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
@@ -60,6 +40,27 @@ export default function MapScreen({ navigation }) {
             console.log('Location error:', e);
         }
     };
+
+    const fetchPosts = async () => {
+        try {
+            const res = await getAllPosts(0, 500);
+            const data = res.data?.content || res.data;
+            const withCoords = data.filter((p) => p.latitude && p.longitude);
+            setPosts(withCoords);
+            setFilteredPosts(withCoords);
+        } catch (e) {
+            console.log('Map fetch error:', e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchPosts();
+            getLocation();
+        }, [])
+    );
 
     const centerOnUser = () => {
         if (userLocation && mapRef.current) {
@@ -160,7 +161,6 @@ export default function MapScreen({ navigation }) {
                     )}
                 </View>
 
-                {/* Suggestions dropdown */}
                 {suggestions.length > 0 && (
                     <View style={styles.suggestions}>
                         {suggestions.map((item) => (

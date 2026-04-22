@@ -131,9 +131,17 @@ export default function PostDetailScreen({ route, navigation }) {
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Report</Text>
                     {isMyPost ? (
-                        <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn}>
-                            <Text style={styles.deleteIcon}>🗑️</Text>
-                        </TouchableOpacity>
+                        <View style={styles.headerActions}>
+                            <TouchableOpacity
+                                onPress={() => navigation.navigate('EditPost', { post })}
+                                style={styles.editBtn}
+                            >
+                                <Text style={styles.editIcon}>✏️</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn}>
+                                <Text style={styles.deleteIcon}>🗑️</Text>
+                            </TouchableOpacity>
+                        </View>
                     ) : (
                         <View style={{ width: 36 }} />
                     )}
@@ -158,9 +166,6 @@ export default function PostDetailScreen({ route, navigation }) {
                         <View style={{ flex: 1 }}>
                             <Text style={styles.username}>{post.username || 'User'}</Text>
                             <Text style={styles.time}>{timeAgo(post.createdAt)}</Text>
-                        </View>
-                        <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
-                            <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
                         </View>
                     </View>
 
@@ -282,6 +287,9 @@ const styles = StyleSheet.create({
     },
     backBtn: { padding: 4 },
     backIcon: { fontSize: 22, color: COLORS.primary },
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    editBtn: { padding: 4 },
+    editIcon: { fontSize: 20 },
     deleteBtn: { padding: 4 },
     deleteIcon: { fontSize: 20 },
     headerTitle: { fontSize: 17, fontWeight: '600', color: COLORS.text },

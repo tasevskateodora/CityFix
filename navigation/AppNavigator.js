@@ -15,6 +15,7 @@ import MyReportScreen from '../screens/MyReportScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import PostDetailScreen from '../screens/PostDetailScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
+import EditPostScreen from '../screens/EditPostScreen';
 
 const RootStack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -37,6 +38,7 @@ function HomeStackScreen() {
         <HomeStack.Navigator screenOptions={{ headerShown: false }}>
             <HomeStack.Screen name="HomeMain" component={HomeScreen} />
             <HomeStack.Screen name="PostDetail" component={PostDetailScreen} />
+            <HomeStack.Screen name="EditPost" component={EditPostScreen} />
         </HomeStack.Navigator>
     );
 }
@@ -46,6 +48,7 @@ function MapStackScreen() {
         <MapStack.Navigator screenOptions={{ headerShown: false }}>
             <MapStack.Screen name="MapMain" component={MapScreen} />
             <MapStack.Screen name="PostDetail" component={PostDetailScreen} />
+            <MapStack.Screen name="EditPost" component={EditPostScreen} />
         </MapStack.Navigator>
     );
 }
@@ -63,6 +66,7 @@ function MyReportStackScreen() {
         <MyReportStack.Navigator screenOptions={{ headerShown: false }}>
             <MyReportStack.Screen name="MyReportMain" component={MyReportScreen} />
             <MyReportStack.Screen name="PostDetail" component={PostDetailScreen} />
+            <MyReportStack.Screen name="EditPost" component={EditPostScreen} />
         </MyReportStack.Navigator>
     );
 }
@@ -72,6 +76,7 @@ function ProfileStackScreen() {
         <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
             <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
             <ProfileStack.Screen name="PostDetail" component={PostDetailScreen} />
+            <ProfileStack.Screen name="EditPost" component={EditPostScreen} />
             <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
         </ProfileStack.Navigator>
     );

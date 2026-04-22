@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TouchableOpacity,
-    RefreshControl, ActivityIndicator,
+    RefreshControl, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import {
     COLORS, CATEGORY_COLORS, CATEGORY_LABELS,
     CATEGORY_ICONS, STATUS_COLORS, STATUS_LABELS,
 } from '../constants/theme';
 import { getPostsByUser } from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import client from '../api/client';
 
 export default function MyReportScreen({ navigation }) {
     const { user } = useAuth();
@@ -18,7 +21,7 @@ export default function MyReportScreen({ navigation }) {
     const [filtered, setFiltered] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [statusFilter, setStatusFilter] = useState('All');
+    const [exporting, setExporting] = useState(false);
 
     const fetchPosts = async () => {
         if (!user?.id) return;
@@ -28,6 +31,7 @@ export default function MyReportScreen({ navigation }) {
                 (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
             );
             setPosts(sorted);
+            setFiltered(sorted);
         } catch (e) {
             console.log('My reports error:', e.message);
         } finally {
@@ -36,7 +40,6 @@ export default function MyReportScreen({ navigation }) {
         }
     };
 
-    // Refetch every time the tab comes into focus
     useFocusEffect(
         useCallback(() => {
             setLoading(true);
@@ -44,18 +47,46 @@ export default function MyReportScreen({ navigation }) {
         }, [user])
     );
 
-    useEffect(() => {
-        let result = posts;
-        if (statusFilter !== 'All') {
-            result = result.filter((p) => p.status === statusFilter);
-        }
-        setFiltered(result);
-    }, [statusFilter, posts]);
-
     const onRefresh = useCallback(() => {
         setRefreshing(true);
         fetchPosts();
     }, [user]);
+
+    const handleExportPdf = async () => {
+        setExporting(true);
+        try {
+            const response = await client.get('/api/export/my-reports/pdf', {
+                responseType: 'arraybuffer',
+            });
+
+            const base64 = btoa(
+                new Uint8Array(response.data).reduce(
+                    (data, byte) => data + String.fromCharCode(byte), ''
+                )
+            );
+
+            const fileUri = FileSystem.documentDirectory + 'cityfix-reports.pdf';
+            await FileSystem.writeAsStringAsync(fileUri, base64, {
+                encoding: 'base64',
+            });
+
+            const canShare = await Sharing.isAvailableAsync();
+            if (canShare) {
+                await Sharing.shareAsync(fileUri, {
+                    mimeType: 'application/pdf',
+                    dialogTitle: 'Export My Reports',
+                    UTI: 'com.adobe.pdf',
+                });
+            } else {
+                Alert.alert('Saved', 'PDF saved to: ' + fileUri);
+            }
+        } catch (e) {
+            console.log('Export error:', e.message);
+            Alert.alert('Error', 'Could not export PDF. Please try again.');
+        } finally {
+            setExporting(false);
+        }
+    };
 
     const formatDate = (dateStr) => {
         if (!dateStr) return '';
@@ -69,8 +100,6 @@ export default function MyReportScreen({ navigation }) {
         const catColor = CATEGORY_COLORS[item.category] || COLORS.textSecondary;
         const catLabel = CATEGORY_LABELS[item.category] || item.category || 'Other';
         const catIcon = CATEGORY_ICONS[item.category] || '📍';
-        const statusColor = STATUS_COLORS[item.status] || COLORS.textSecondary;
-        const statusLabel = STATUS_LABELS[item.status] || item.status || 'Pending';
 
         return (
             <TouchableOpacity
@@ -108,12 +137,23 @@ export default function MyReportScreen({ navigation }) {
         <SafeAreaView style={styles.container} edges={['top']}>
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>My Report</Text>
-                <View style={styles.countBadge}>
-                    <Text style={styles.countBadgeText}>{filtered.length}</Text>
+                <View style={styles.headerRight}>
+                    <View style={styles.countBadge}>
+                        <Text style={styles.countBadgeText}>{filtered.length}</Text>
+                    </View>
+                    <TouchableOpacity
+                        style={styles.exportBtn}
+                        onPress={handleExportPdf}
+                        disabled={exporting}
+                    >
+                        {exporting ? (
+                            <ActivityIndicator size="small" color={COLORS.primary} />
+                        ) : (
+                            <Text style={styles.exportIcon}>📄</Text>
+                        )}
+                    </TouchableOpacity>
                 </View>
             </View>
-
-
 
             <FlatList
                 data={filtered}
@@ -152,9 +192,9 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         borderBottomWidth: 1,
         borderBottomColor: COLORS.border,
-        gap: 10,
     },
     headerTitle: { fontSize: 20, fontWeight: '700', color: COLORS.text, flex: 1 },
+    headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     countBadge: {
         backgroundColor: COLORS.primaryLight,
         paddingHorizontal: 10,
@@ -162,23 +202,12 @@ const styles = StyleSheet.create({
         borderRadius: 12,
     },
     countBadgeText: { color: COLORS.primary, fontWeight: '700', fontSize: 13 },
-    filters: {
-        flexDirection: 'row',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        gap: 8,
+    exportBtn: {
+        width: 36, height: 36, borderRadius: 18,
+        backgroundColor: COLORS.primaryLight,
+        alignItems: 'center', justifyContent: 'center',
     },
-    filterChip: {
-        paddingHorizontal: 14,
-        paddingVertical: 6,
-        borderRadius: 20,
-        backgroundColor: COLORS.background,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    filterChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-    filterChipText: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '500' },
-    filterChipTextActive: { color: '#fff' },
+    exportIcon: { fontSize: 18 },
     list: { paddingBottom: 24 },
     item: {
         flexDirection: 'row',
@@ -188,24 +217,17 @@ const styles = StyleSheet.create({
         gap: 14,
     },
     catDot: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        alignItems: 'center',
-        justifyContent: 'center',
+        width: 44, height: 44, borderRadius: 22,
+        alignItems: 'center', justifyContent: 'center',
     },
     catDotIcon: { fontSize: 22 },
     itemContent: { flex: 1 },
     itemTitle: { fontSize: 14, fontWeight: '600', color: COLORS.text, marginBottom: 4 },
     itemMeta: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        flexWrap: 'wrap',
+        flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap',
     },
     itemCat: { fontSize: 12, fontWeight: '500' },
     dot: { color: COLORS.textLight, fontSize: 12 },
-    itemStatus: { fontSize: 12, fontWeight: '500' },
     itemDate: { fontSize: 12, color: COLORS.textLight },
     chevron: { fontSize: 22, color: COLORS.textLight },
     separator: { height: 1, backgroundColor: COLORS.border, marginLeft: 78 },
