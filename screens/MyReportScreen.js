@@ -19,6 +19,7 @@ export default function MyReportScreen({ navigation }) {
     const { user } = useAuth();
     const [posts, setPosts] = useState([]);
     const [filtered, setFiltered] = useState([]);
+    const [activeFilter, setActiveFilter] = useState('ALL');
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [exporting, setExporting] = useState(false);
@@ -51,6 +52,15 @@ export default function MyReportScreen({ navigation }) {
         setRefreshing(true);
         fetchPosts();
     }, [user]);
+
+    const handleFilter = (status) => {
+        setActiveFilter(status);
+        if (status === 'ALL') {
+            setFiltered(posts);
+        } else {
+            setFiltered(posts.filter((p) => p.status === status));
+        }
+    };
 
     const handleExportPdf = async () => {
         setExporting(true);
@@ -118,6 +128,12 @@ export default function MyReportScreen({ navigation }) {
                         <Text style={[styles.itemCat, { color: catColor }]}>{catLabel}</Text>
                         <Text style={styles.dot}>·</Text>
                         <Text style={styles.itemDate}>{formatDate(item.createdAt)}</Text>
+                        <Text style={styles.dot}>·</Text>
+                        <View style={[styles.statusBadge, { backgroundColor: (STATUS_COLORS[item.status] || '#ccc') + '20' }]}>
+                            <Text style={[styles.statusText, { color: STATUS_COLORS[item.status] || '#ccc' }]}>
+                                {STATUS_LABELS[item.status] || item.status}
+                            </Text>
+                        </View>
                     </View>
                 </View>
                 <Text style={styles.chevron}>›</Text>
@@ -153,6 +169,29 @@ export default function MyReportScreen({ navigation }) {
                         )}
                     </TouchableOpacity>
                 </View>
+            </View>
+
+            {/* Filter bar */}
+            <View style={styles.filterBar}>
+                {['ALL', 'OPEN', 'IN_PROGRESS', 'RESOLVED'].map((status) => {
+                    const isActive = activeFilter === status;
+                    const color = status === 'ALL' ? COLORS.primary : (STATUS_COLORS[status] || COLORS.primary);
+                    const label = status === 'ALL' ? 'All' : STATUS_LABELS[status];
+                    return (
+                        <TouchableOpacity
+                            key={status}
+                            style={[
+                                styles.filterBtn,
+                                isActive && { backgroundColor: color, borderColor: color },
+                            ]}
+                            onPress={() => handleFilter(status)}
+                        >
+                            <Text style={[styles.filterText, isActive && { color: '#fff' }]}>
+                                {label}
+                            </Text>
+                        </TouchableOpacity>
+                    );
+                })}
             </View>
 
             <FlatList
@@ -208,6 +247,28 @@ const styles = StyleSheet.create({
         alignItems: 'center', justifyContent: 'center',
     },
     exportIcon: { fontSize: 18 },
+    // Filter bar
+    filterBar: {
+        flexDirection: 'row',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        gap: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+    },
+    filterBtn: {
+        paddingHorizontal: 12,
+        paddingVertical: 5,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        backgroundColor: '#fff',
+    },
+    filterText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: COLORS.textSecondary,
+    },
     list: { paddingBottom: 24 },
     item: {
         flexDirection: 'row',
@@ -229,6 +290,16 @@ const styles = StyleSheet.create({
     itemCat: { fontSize: 12, fontWeight: '500' },
     dot: { color: COLORS.textLight, fontSize: 12 },
     itemDate: { fontSize: 12, color: COLORS.textLight },
+    // Status badge
+    statusBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+    },
+    statusText: {
+        fontSize: 11,
+        fontWeight: '600',
+    },
     chevron: { fontSize: 22, color: COLORS.textLight },
     separator: { height: 1, backgroundColor: COLORS.border, marginLeft: 78 },
     empty: { alignItems: 'center', paddingTop: 80, gap: 8 },
