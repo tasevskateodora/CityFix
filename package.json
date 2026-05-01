@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "jest"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -24,9 +25,30 @@
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
     "react-native": "0.81.5",
+    "react-native-gesture-handler": "^2.31.1",
     "react-native-maps": "1.20.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "jest": "^30.3.0",
+    "jest-expo": "^55.0.16"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "transform": {
+      "^.+\\.[jt]sx?$": "babel-jest"
+    },
+    "transformIgnorePatterns": [
+      "node_modules/(?!(axios)/)"
+    ],
+    "moduleNameMapper": {
+      "^expo-secure-store$": "<rootDir>/__mocks__/expo-secure-store.js",
+      "^expo(.*)$": "<rootDir>/__mocks__/expo.js",
+      "^react-native(.*)$": "<rootDir>/__mocks__/react-native.js",
+      "^@react-navigation(.*)$": "<rootDir>/__mocks__/react-navigation.js",
+      "^@react-native-async-storage(.*)$": "<rootDir>/__mocks__/async-storage.js"
+    }
+  }
 }

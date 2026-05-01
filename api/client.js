@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 // Replace with your computer's local IP address
-export const BASE_URL = 'http://192.168.1.28:8081';
+export const BASE_URL = 'http://192.168.1.23:8081';
 
 const client = axios.create({
     baseURL: BASE_URL,
